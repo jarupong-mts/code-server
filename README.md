@@ -20,63 +20,34 @@ the workspace persist on the host.
    Copy-Item .env.example .env
    ```
 
-3. On Linux, use the host user's numeric IDs so files created in the mounted
-   directories remain editable by that user. This is required because
-   `./data/home` is mounted over `/home/coder`; if it is owned by `root` or a
-   different UID, code-server cannot create `.local` or `.config`:
-
-   ```sh
-   sed -i "s/^CODE_SERVER_UID=.*/CODE_SERVER_UID=$(id -u)/; s/^CODE_SERVER_GID=.*/CODE_SERVER_GID=$(id -g)/" .env
-   mkdir -p data/home workspace
-   sudo chown -R "$(id -u):$(id -g)" data/home workspace
-   ```
-
-   If you do not have `sudo` and the existing `data/home` is owned by root,
-   use new directories under your own home directory instead. Set these two
-   values in `.env`:
-
-   ```dotenv
-   CODE_SERVER_HOME_PATH=/home/<your-user>/code-server-data/home
-   CODE_SERVER_WORKSPACE_PATH=/home/<your-user>/code-server-data/workspace
-   ```
-
-   Then create them without elevated permissions:
-
-   ```sh
-   mkdir -p "$HOME/code-server-data/home" "$HOME/code-server-data/workspace"
-   ```
-
-   The compose file uses `./data/home` and `./workspace` only as defaults; the
-   two variables above can point to any writable host directories.
-
-   If the project was already started once with the wrong owner, run the
-   following repair from the project directory before recreating the service:
-
-   ```sh
-   mkdir -p data/home workspace
-   sudo chown -R "$(id -u):$(id -g)" data/home workspace
-   docker compose down
-   docker compose up -d --build
-   ```
-
-   You can verify the effective mapping with:
-
-   ```sh
-   id -u; id -g
-   grep '^CODE_SERVER_UID\|^CODE_SERVER_GID' .env
-   docker compose config | grep -A1 'user:'
-   ```
-
-   Docker Desktop on macOS and Windows can use the defaults in `.env.example`.
-
-4. Build and start the service:
+3. Build and start the service:
 
    ```sh
    docker compose up -d --build
    docker compose ps
    ```
 
-5. Open <http://127.0.0.1:8080> and sign in with `CODE_SERVER_PASSWORD`.
+4. Open <http://127.0.0.1:8080> and sign in with `CODE_SERVER_PASSWORD`.
+
+On startup, the image automatically prepares the home/workspace mount roots
+and repairs the ownership of code-server's `.local` and `.config` state,
+including directories that Docker previously created as root. The preparation
+step uses the upstream image's passwordless sudo configuration; setup hooks and
+code-server continue to run as the unprivileged `coder` account. No host-side
+`mkdir`, `chown`, or sudo access is required.
+
+The default runtime identity is `1000:1000`. This is enough for code-server to
+work on any normal local bind mount. If the deploying account must also edit
+the persisted files directly on a Linux host and uses a different numeric ID,
+set these optional values once in `.env`:
+
+```dotenv
+CODE_SERVER_UID=1001
+CODE_SERVER_GID=1001
+```
+
+Use `id -u` and `id -g` to find those values. The startup repair remains
+automatic after setting them.
 
 The default host port is bound to localhost. For access through a reverse proxy,
 leave that host binding in place and proxy to `127.0.0.1:8080`; enable WebSocket
@@ -112,8 +83,9 @@ later extended.
 
 ## Notes
 
-- The official image's default container user is UID 1000. `CODE_SERVER_UID`
-  and `CODE_SERVER_GID` make that mapping explicit for Linux hosts.
+- The official image's default container user is UID 1000. Optional
+  `CODE_SERVER_UID` and `CODE_SERVER_GID` overrides are useful only when files
+  must have a different owner on the Linux host.
 - `PASSWORD` is supplied through `.env`, which is ignored by git. Do not put
   credentials in `compose.yaml` or commit `.env`.
 - The health check uses code-server's `/healthz` endpoint, which does not

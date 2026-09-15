@@ -53,7 +53,12 @@ ENV PATH="/home/coder/.local/bin:${PATH}"
 ENV ENTRYPOINTD=/usr/local/lib/code-server/entrypoint.d
 
 COPY scripts/entrypoint.d/10-code-server-setup.sh ${ENTRYPOINTD}/10-code-server-setup.sh
-RUN chmod +x ${ENTRYPOINTD}/10-code-server-setup.sh
+COPY scripts/docker-entrypoint.sh /usr/local/bin/oia-code-server-entrypoint
+RUN chmod +x \
+        ${ENTRYPOINTD}/10-code-server-setup.sh \
+        /usr/local/bin/oia-code-server-entrypoint
 
 USER 1000
 WORKDIR /home/coder
+
+ENTRYPOINT ["/usr/local/bin/oia-code-server-entrypoint", "--bind-addr", "0.0.0.0:8080", "."]
