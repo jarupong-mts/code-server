@@ -21,12 +21,50 @@ the workspace persist on the host.
    ```
 
 3. On Linux, use the host user's numeric IDs so files created in the mounted
-   directories remain editable by that user:
+   directories remain editable by that user. This is required because
+   `./data/home` is mounted over `/home/coder`; if it is owned by `root` or a
+   different UID, code-server cannot create `.local` or `.config`:
 
    ```sh
    sed -i "s/^CODE_SERVER_UID=.*/CODE_SERVER_UID=$(id -u)/; s/^CODE_SERVER_GID=.*/CODE_SERVER_GID=$(id -g)/" .env
    mkdir -p data/home workspace
    sudo chown -R "$(id -u):$(id -g)" data/home workspace
+   ```
+
+   If you do not have `sudo` and the existing `data/home` is owned by root,
+   use new directories under your own home directory instead. Set these two
+   values in `.env`:
+
+   ```dotenv
+   CODE_SERVER_HOME_PATH=/home/<your-user>/code-server-data/home
+   CODE_SERVER_WORKSPACE_PATH=/home/<your-user>/code-server-data/workspace
+   ```
+
+   Then create them without elevated permissions:
+
+   ```sh
+   mkdir -p "$HOME/code-server-data/home" "$HOME/code-server-data/workspace"
+   ```
+
+   The compose file uses `./data/home` and `./workspace` only as defaults; the
+   two variables above can point to any writable host directories.
+
+   If the project was already started once with the wrong owner, run the
+   following repair from the project directory before recreating the service:
+
+   ```sh
+   mkdir -p data/home workspace
+   sudo chown -R "$(id -u):$(id -g)" data/home workspace
+   docker compose down
+   docker compose up -d --build
+   ```
+
+   You can verify the effective mapping with:
+
+   ```sh
+   id -u; id -g
+   grep '^CODE_SERVER_UID\|^CODE_SERVER_GID' .env
+   docker compose config | grep -A1 'user:'
    ```
 
    Docker Desktop on macOS and Windows can use the defaults in `.env.example`.

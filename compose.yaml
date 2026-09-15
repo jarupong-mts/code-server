@@ -26,9 +26,10 @@ services:
     volumes:
       # Persist code-server and coding-agent settings, credentials, extensions,
       # and git configuration across image rebuilds/container recreation.
-      - ./data/home:/home/coder
+      # Override the host path when the default directory is not writable.
+      - "${CODE_SERVER_HOME_PATH:-./data/home}:/home/coder"
       # The directory opened by default in the browser
-      - ./workspace:/home/coder/project
+      - "${CODE_SERVER_WORKSPACE_PATH:-./workspace}:/home/coder/project"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
       interval: 30s
