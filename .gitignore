@@ -1,0 +1,5 @@
+.env
+
+# Persistent code-server state and user workspace
+/data/
+/workspace/

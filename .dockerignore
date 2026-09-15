@@ -1,0 +1,8 @@
+.env
+.git
+.gitignore
+data
+workspace
+Dockerfile
+compose.yaml
+README.md

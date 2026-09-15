@@ -1,0 +1,37 @@
+services:
+  code-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        CODE_SERVER_BASE_IMAGE: ghcr.io/coder/code-server:${CODE_SERVER_VERSION:-latest}
+        UV_VERSION: "${UV_VERSION:-latest}"
+        CLAUDE_CODE_VERSION: "${CLAUDE_CODE_VERSION:-latest}"
+        CODEX_CLI_VERSION: "${CODEX_CLI_VERSION:-latest}"
+        OPENCODE_CLI_VERSION: "${OPENCODE_CLI_VERSION:-latest}"
+    image: "${CODE_SERVER_IMAGE:-oia-code-server:local}"
+    restart: unless-stopped
+    init: true
+    user: "${CODE_SERVER_UID:-1000}:${CODE_SERVER_GID:-1000}"
+    environment:
+      PASSWORD: "${CODE_SERVER_PASSWORD:?Set CODE_SERVER_PASSWORD in .env}"
+      TZ: "${TZ:-UTC}"
+      DOCKER_USER: "${DOCKER_USER:-coder}"
+      CODE_SERVER_THEME: "${CODE_SERVER_THEME:-Default Dark Modern}"
+      VSCODE_EXTENSIONS: "${VSCODE_EXTENSIONS:-ms-python.python,ms-python.vscode-pylance,charliermarsh.ruff,esbenp.prettier-vscode,dbaeumer.vscode-eslint,redhat.vscode-yaml,yzhang.markdown-all-in-one}"
+    ports:
+      # Keep this on localhost and put TLS/authentication in a reverse proxy.
+      # Set CODE_SERVER_BIND_IP=0.0.0.0 only when direct network access is intended.
+      - "${CODE_SERVER_BIND_IP:-127.0.0.1}:${CODE_SERVER_PORT:-8080}:8080"
+    volumes:
+      # Persist code-server and coding-agent settings, credentials, extensions,
+      # and git configuration across image rebuilds/container recreation.
+      - ./data/home:/home/coder
+      # The directory opened by default in the browser
+      - ./workspace:/home/coder/project
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
