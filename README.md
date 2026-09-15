@@ -23,11 +23,13 @@ the workspace persist on the host.
 3. Build and start the service:
 
    ```sh
+   docker network create proxy
    docker compose up -d --build
    docker compose ps
    ```
 
-4. Open <http://127.0.0.1:8080> and sign in with `CODE_SERVER_PASSWORD`.
+4. Ensure Traefik is running on the external `proxy` network, then open
+   <http://127.0.0.1:18080/code/> and sign in with `CODE_SERVER_PASSWORD`.
 
 On startup, the image automatically prepares the home/workspace mount roots
 and repairs the ownership of code-server's `.local` and `.config` state,
@@ -49,11 +51,11 @@ CODE_SERVER_GID=1001
 Use `id -u` and `id -g` to find those values. The startup repair remains
 automatic after setting them.
 
-The default host port is bound to localhost. For access through a reverse proxy,
-leave that host binding in place and proxy to `127.0.0.1:8080`; enable WebSocket
-support in the proxy. For deliberate direct LAN access, set
-`CODE_SERVER_BIND_IP=0.0.0.0` in `.env` and restrict the port with the host
-firewall.
+The service is reachable through Traefik at the `/code/` path and is attached
+to the external Docker network named `proxy`. The Compose file does not publish
+the code-server port to the host; Traefik connects to the container on port
+`8080` and strips the `/code` prefix. Keep the trailing slash in the URL.
+For non-local access, configure HTTPS/TLS and authentication in Traefik.
 
 The first startup installs the configured missing extensions and creates the
 default `CODE_SERVER_THEME`. Both are stored under `data/home`, so normal

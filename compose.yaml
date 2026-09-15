@@ -19,10 +19,21 @@ services:
       DOCKER_USER: "${DOCKER_USER:-coder}"
       CODE_SERVER_THEME: "${CODE_SERVER_THEME:-Default Dark Modern}"
       VSCODE_EXTENSIONS: "${VSCODE_EXTENSIONS:-ms-python.python,ms-python.vscode-pylance,charliermarsh.ruff,esbenp.prettier-vscode,dbaeumer.vscode-eslint,redhat.vscode-yaml,yzhang.markdown-all-in-one}"
-    ports:
-      # Keep this on localhost and put TLS/authentication in a reverse proxy.
-      # Set CODE_SERVER_BIND_IP=0.0.0.0 only when direct network access is intended.
-      - "${CODE_SERVER_BIND_IP:-127.0.0.1}:${CODE_SERVER_PORT:-8080}:8080"
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy
+      - traefik.http.routers.code-server.rule=PathPrefix(`/code/`)
+      - traefik.http.routers.code-server.middlewares=code-server-strip
+      - traefik.http.middlewares.code-server-strip.stripprefix.prefixes=/code
+      - traefik.http.services.code-server.loadbalancer.server.port=8080
+      - traefik.http.routers.code-server-slash.rule=Path(`/code`)
+      - traefik.http.routers.code-server-slash.priority=100
+      - traefik.http.routers.code-server-slash.middlewares=code-server-slash
+      - traefik.http.middlewares.code-server-slash.redirectregex.regex=^(.*)/code$
+      - traefik.http.middlewares.code-server-slash.redirectregex.replacement=$${1}/code/
+      - traefik.http.middlewares.code-server-slash.redirectregex.permanent=true
     volumes:
       # Persist code-server and coding-agent settings, credentials, extensions,
       # and git configuration across image rebuilds/container recreation.
@@ -36,3 +47,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+networks:
+  proxy:
+    external: true
+    name: proxy
