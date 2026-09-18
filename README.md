@@ -32,8 +32,8 @@ the workspace persist on the host.
    <http://127.0.0.1:18080/code/> and sign in with `CODE_SERVER_PASSWORD`.
 
 On startup, the image automatically prepares the home/workspace mount roots
-and repairs the ownership of code-server's `.local` and `.config` state,
-including directories that Docker previously created as root. The preparation
+and repairs nested files that are owned by another UID, including directories
+that Docker or a deployment step previously created as root. The preparation
 step uses the upstream image's passwordless sudo configuration; setup hooks and
 code-server continue to run as the unprivileged `coder` account. No host-side
 `mkdir`, `chown`, or sudo access is required.
