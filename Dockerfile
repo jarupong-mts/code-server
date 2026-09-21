@@ -2,6 +2,13 @@
 
 ARG CODE_SERVER_BASE_IMAGE=ghcr.io/coder/code-server:latest
 ARG UV_VERSION=latest
+ARG NODE_VERSION=24
+
+# Keep Node.js independent from the distro version bundled in code-server.
+FROM node:${NODE_VERSION}-bookworm-slim AS node
+
+# Reuse Docker's static client and Compose plugin; the daemon stays on the host.
+FROM docker:cli AS docker-cli
 
 # Docker does not support variable expansion directly in COPY --from image
 # references. Resolve the uv image in a named stage instead.
@@ -25,8 +32,6 @@ RUN apt-get update \
         libffi-dev \
         libssl-dev \
         less \
-        nodejs \
-        npm \
         pkg-config \
         python3 \
         python3-dev \
@@ -40,6 +45,17 @@ RUN apt-get update \
 
 # Copy uv from Astral's official image.
 COPY --from=uv /uv /uvx /usr/local/bin/
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins/docker-compose /usr/local/libexec/docker/cli-plugins/docker-compose
+
+# Use Node.js 24 explicitly; the apt package in the base image may be older.
+# Copy the complete /usr/local tree so npm's symlinks and support files remain
+# consistent with the Node.js binary.
+COPY --from=node /usr/local/ /usr/local/
+
+RUN node --version \
+    && npm --version \
+    && node -e "if (Number(process.versions.node.split('.')[0]) <= 22) process.exit(1)"
 
 # Install the terminal coding agents globally. The version args can be pinned
 # in .env when a reproducible toolchain is required.

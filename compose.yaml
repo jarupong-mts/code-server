@@ -13,6 +13,8 @@ services:
     restart: unless-stopped
     init: true
     user: "${CODE_SERVER_UID:-1000}:${CODE_SERVER_GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-999}"
     environment:
       PASSWORD: "${CODE_SERVER_PASSWORD:?Set CODE_SERVER_PASSWORD in .env}"
       TZ: "${TZ:-UTC}"
@@ -35,6 +37,7 @@ services:
       - traefik.http.middlewares.code-server-slash.redirectregex.replacement=$${1}/code/
       - traefik.http.middlewares.code-server-slash.redirectregex.permanent=true
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       # Persist code-server and coding-agent settings, credentials, extensions,
       # and git configuration across image rebuilds/container recreation.
       # Override the host path when the default directory is not writable.
