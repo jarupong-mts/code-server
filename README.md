@@ -95,7 +95,7 @@ later extended.
 - The default image and tool versions use `latest`, so rebuilds can change the
   environment. Review release notes and test after upgrades; pin versions in
   `.env` when reproducibility matters.
-- Git and Git LFS come from the upstream code-server image. Python and Node.js
+- Git, Git LFS, and GitHub CLI (`gh`) are installed in the image. Python and Node.js
   are installed from the Debian base distribution; uv is copied from Astral's
   official image; the CLIs are installed from their official npm packages.
 - This is a single-user code-server deployment. For multiple isolated users,
@@ -127,7 +127,7 @@ needs them.
 
 The image includes a useful general-purpose baseline:
 
-- Core: Git, Git LFS, OpenSSH client, curl, jq, ripgrep, fd-find, zip/unzip,
+- Core: Git, Git LFS, GitHub CLI (`gh`), OpenSSH client, curl, jq, ripgrep, fd-find, zip/unzip,
   tree, less, and build tools.
 - Python: `python3`, `venv`, headers, pip, and uv. Use `uv venv` and
   `uv sync` per project rather than installing application dependencies
