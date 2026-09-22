@@ -22,9 +22,10 @@ ARG OPENCODE_CLI_VERSION=latest
 
 USER root
 
-# The code-server image already provides git, git-lfs, curl, sudo, ssh, and
-# useful shell tools. Add the language/runtime tools needed by this workspace.
+# Install GitHub CLI first so it is available before the rest of the toolchain.
 RUN apt-get update \
+    && apt-get install -y --no-install-recommends gh \
+    && gh --version \
     && apt-get install -y --no-install-recommends \
         build-essential \
         fd-find \
