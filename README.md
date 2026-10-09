@@ -138,9 +138,48 @@ The image includes a useful general-purpose baseline:
   ESLint, YAML, and Markdown extensions. Edit `CODE_SERVER_THEME` and
   `VSCODE_EXTENSIONS` in `.env` to customize this baseline.
 
-Add Docker CLI only if you need to control the host Docker daemon from inside
-code-server. Mounting `/var/run/docker.sock` grants powerful host-level access,
-so it should be an explicit opt-in rather than part of the default deployment.
+## Docker access from inside code-server
+
+A Docker socket is bind-mounted into `code-server` so the Docker CLI
+inside it controls the host Docker daemon directly (e.g. running
+`docker compose up -d --build` for other projects under `projects/`). This
+is powerful, host-level access — anyone who can reach the socket can run
+containers as root on the host — so treat this container's shell with the
+same care as host root access.
+
+Unix socket permissions are just a uid/gid match, so `code-server` needs
+to run as whatever uid/gid owns the daemon's socket — no `sudo`,
+`group_add`, or `userns_mode` needed:
+
+- **Rootful Docker** (the default on most hosts): the socket is
+  `/var/run/docker.sock`, owned `root:docker`. Set `CODE_SERVER_GID` to
+  that group's id (`stat -c '%g' /var/run/docker.sock`).
+- **Rootless Docker** (dockerd running as a regular user, not root): the
+  socket instead lives at `/run/user/<uid>/docker.sock`, owned by that
+  user. Set `DOCKER_SOCKET_PATH` to that path.
+
+  Run `docker context ls` on the host if you're not sure which mode it's
+  in — a context pointing at `/run/user/<uid>/docker.sock` means rootless.
+
+  For the uid/gid: if `code-server` is deployed by that *same* rootless
+  engine (i.e. you run `docker compose up` as that same user — the setup
+  this repo assumes), don't use `id <uid>` on the host. Rootless Docker
+  runs every container inside rootlesskit's own nested user namespace,
+  which remaps uids/gids per its own subuid/subgid table — the host
+  user's real uid typically shows up as `root` *inside* any container on
+  that engine, and its gid maps to some unrelated number too. Get any
+  container running on that engine (even with the wrong permissions for
+  now) and read the real number straight off `ls -la /var/run/docker.sock`
+  from inside it, then set `CODE_SERVER_GID` to that. Group, not uid or
+  root — matching the mapped owner (`root`, inside that namespace) would
+  mean running `code-server` itself as root, which fights the `fixuid`
+  setup this image relies on for the non-root `coder` account.
+
+All variables are in `.env.example`. Get them wrong and you'll see
+`permission denied while trying to connect to the docker API` — that's
+always a uid/gid mismatch between `code-server` and whichever socket
+`DOCKER_SOCKET_PATH` points at, never something a container-side
+workaround (root, sudo, extra groups) can paper over.
 
 ## References
 
