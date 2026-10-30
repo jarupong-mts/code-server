@@ -1,0 +1,6 @@
+http://:3773 {
+	basic_auth {
+		{$T3_USER} {$T3_PASSWORD_HASH}
+	}
+	reverse_proxy t3code:3773
+}
