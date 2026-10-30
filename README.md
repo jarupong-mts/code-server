@@ -153,8 +153,9 @@ The image includes a useful general-purpose baseline:
   globally.
 - JavaScript: Node.js and npm for the coding-agent CLIs and project tooling.
 - AI agents: Claude Code, Codex CLI, and Pi coding agent.
-- Editor setup: a default dark theme plus Python/Pylance/Ruff, Prettier,
-  ESLint, YAML, and Markdown extensions. Edit `CODE_SERVER_THEME` and
+- Editor setup: a default dark theme plus Python/Ruff, Prettier, ESLint,
+  YAML, and Markdown extensions. Pylance is not published to Open VSX, so it
+  is not installed by default. Edit `CODE_SERVER_THEME` and
   `VSCODE_EXTENSIONS` in `.env` to customize this baseline.
 
 ## Docker access from inside code-server

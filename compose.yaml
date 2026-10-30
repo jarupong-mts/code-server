@@ -18,7 +18,7 @@ services:
       TZ: "${TZ:-UTC}"
       DOCKER_USER: "${DOCKER_USER:-coder}"
       CODE_SERVER_THEME: "${CODE_SERVER_THEME:-Default Dark Modern}"
-      VSCODE_EXTENSIONS: "${VSCODE_EXTENSIONS:-ms-python.python,ms-python.vscode-pylance,charliermarsh.ruff,esbenp.prettier-vscode,dbaeumer.vscode-eslint,redhat.vscode-yaml,yzhang.markdown-all-in-one}"
+      VSCODE_EXTENSIONS: "${VSCODE_EXTENSIONS:-ms-python.python,charliermarsh.ruff,esbenp.prettier-vscode,dbaeumer.vscode-eslint,redhat.vscode-yaml,yzhang.markdown-all-in-one}"
     networks:
       - proxy
     labels:
