@@ -18,7 +18,7 @@ FROM ${CODE_SERVER_BASE_IMAGE}
 
 ARG CLAUDE_CODE_VERSION=latest
 ARG CODEX_CLI_VERSION=latest
-ARG OPENCODE_CLI_VERSION=latest
+ARG PI_CODING_AGENT_VERSION=latest
 
 USER root
 
@@ -63,9 +63,22 @@ RUN node --version \
 RUN npm install --global \
         "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
         "@openai/codex@${CODEX_CLI_VERSION}" \
-        "@opencode/cli@${OPENCODE_CLI_VERSION}" \
+        # "@earendil-works/pi-coding-agent@${PI_CODING_AGENT_VERSION}" \
     && npm cache clean --force
 
+RUN curl -fsSL https://t3.codes/install.sh -o /tmp/install-t3.sh \
+    && T3CODE_HOME=/opt/t3-cli \
+       T3CODE_INSTALL_BIN_DIR=/usr/local/bin \
+       sh /tmp/install-t3.sh \
+    && chmod -R a+rX /opt/t3-cli/runtime \
+    && chmod 755 /usr/local/bin/t3 \
+    && rm -f /tmp/install-t3.sh \
+    && t3 --version
+
+# Global npm installs performed by coder must be writable and persistent.
+# The image's bundled tools remain available in /usr/local until replaced by
+# a user-installed version under the mounted home directory.
+ENV npm_config_prefix=/home/coder/.local
 ENV PATH="/home/coder/.local/bin:${PATH}"
 ENV ENTRYPOINTD=/usr/local/lib/code-server/entrypoint.d
 

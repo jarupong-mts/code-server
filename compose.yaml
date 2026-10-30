@@ -8,7 +8,7 @@ services:
         UV_VERSION: "${UV_VERSION:-latest}"
         CLAUDE_CODE_VERSION: "${CLAUDE_CODE_VERSION:-latest}"
         CODEX_CLI_VERSION: "${CODEX_CLI_VERSION:-latest}"
-        OPENCODE_CLI_VERSION: "${OPENCODE_CLI_VERSION:-latest}"
+        PI_CODING_AGENT_VERSION: "${PI_CODING_AGENT_VERSION:-latest}"
     image: "${CODE_SERVER_IMAGE:-oia-code-server:local}"
     restart: unless-stopped
     init: true
@@ -58,8 +58,68 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+  
+  t3code:
+    image: "${CODE_SERVER_IMAGE:-oia-code-server:local}"
+    pull_policy: never
+    depends_on:
+      code-server:
+        condition: service_started
+    restart: unless-stopped
+    init: true
+    user: "${CODE_SERVER_UID:-1000}:${CODE_SERVER_GID:-1000}"
+
+    # Override the code-server Dockerfile ENTRYPOINT
+    entrypoint: ["t3"]
+    command:
+      - serve
+      - --mode 
+      - web
+      - --host
+      - 0.0.0.0
+      - --port
+      - "3773"
+      - --no-browser
+
+    working_dir: /home/coder/project
+
+    environment:
+      HOME: /home/coder
+      TZ: "${TZ:-UTC}"
+
+    networks:
+      - t3
+
+    volumes:
+      # Shared credentials: Codex, Claude, Git, etc.
+      - "${CODE_SERVER_HOME_PATH:-./data/home}:/home/coder"
+
+      # Shared projects
+      - "${CODE_SERVER_WORKSPACE_PATH:-./workspace}:/home/coder/project"
+
+      # Host Docker daemon, same as code-server. Anyone who can use T3 can run
+      # containers as the host user, so keep port 3773 restricted.
+      - "${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock"
+
+  # Not behind Traefik: this proxy publishes port 3773 and requires basic auth
+  # before forwarding to T3 Code on the internal t3 network.
+  t3-auth:
+    build: ./caddy
+    restart: unless-stopped
+    depends_on:
+      t3code:
+        condition: service_started
+    ports:
+      - "${T3_BIND_IP:-0.0.0.0}:3773:3773"
+    environment:
+      T3_USER: "${T3_USER:?Set T3_USER in .env}"
+      T3_PASSWORD_HASH: "${T3_PASSWORD_HASH:?Set T3_PASSWORD_HASH in .env}"
+    networks:
+      - t3
 
 networks:
   proxy:
     external: true
     name: proxy
+  t3:
+    driver: bridge

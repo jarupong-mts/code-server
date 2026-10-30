@@ -1,32 +1,43 @@
 # code-server with Docker Compose
 
 This deploys a custom code-server image based on the official container, with
-Python, Node.js/npm, uv, Claude Code, Codex CLI, OpenCode CLI, and common
+Python, Node.js/npm, uv, Claude Code, Codex CLI, Pi coding agent, and common
 development utilities. Settings, CLI credentials, extensions, Git config, and
 the workspace persist on the host.
 
 ## Quick start
 
 1. Install Docker Engine/Desktop with the Compose plugin.
-2. Copy the environment template and set a strong password:
+2. Build and start everything (on Linux/macOS/WSL):
 
    ```sh
-   cp .env.example .env
-   ```
-
-   On PowerShell:
-
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-
-3. Build and start the service:
-
-   ```sh
-   docker network create proxy
-   docker compose up -d --build
+   make up
    docker compose ps
    ```
+
+   On first run `make up` creates `.env` from `.env.example`. It asks how
+   code-server should be reached:
+
+   - **Through Traefik (default):** code-server joins the `proxy` network and
+     is served at `/code/`. A running Traefik is required.
+   - **Direct:** code-server publishes `CODE_SERVER_PORT` on
+     `CODE_SERVER_BIND_IP` (default `0.0.0.0`, so `http://<server-ip>:<port>/`).
+     This is plain HTTP, so the password crosses the network unencrypted; use a
+     VPN such as Tailscale or an SSH tunnel for access from outside the office.
+
+   Then it prompts for the code-server password and the T3 Code login (username and password).
+   Secrets are typed into the prompt, not written to the shell history, and the
+   T3 password is stored only as a bcrypt hash. It also creates the external
+   `proxy` network if it is missing. Re-running it only prompts for values that
+   are still unset.
+
+   Inside code-server, `make up` recreates code-server itself, so run it from
+   the host, or pass the host path of this project explicitly:
+   `HOST_PROJECT_DIR=/path/on/host/code-server make up`.
+
+   Manual alternative (for example on PowerShell): copy `.env.example` to
+   `.env`, set `CODE_SERVER_PASSWORD`, `T3_USER`, and `T3_PASSWORD_HASH`, then
+   run `docker network create proxy` and `docker compose up -d --build`.
 
 4. Ensure Traefik is running on the external `proxy` network, then open
    <http://127.0.0.1:18080/code/> and sign in with `CODE_SERVER_PASSWORD`.
@@ -39,17 +50,10 @@ code-server continue to run as the unprivileged `coder` account. No host-side
 `mkdir`, `chown`, or sudo access is required.
 
 The default runtime identity is `1000:1000`. This is enough for code-server to
-work on any normal local bind mount. If the deploying account must also edit
-the persisted files directly on a Linux host and uses a different numeric ID,
-set these optional values once in `.env`:
-
-```dotenv
-CODE_SERVER_UID=1001
-CODE_SERVER_GID=1001
-```
-
-Use `id -u` and `id -g` to find those values. The startup repair remains
-automatic after setting them.
+work on any normal local bind mount. `make up` sets `CODE_SERVER_UID` to the
+deploying user's uid and `CODE_SERVER_GID` to the group that owns the Docker
+socket as seen from a container, then saves both in `.env`. Set them by hand in
+`.env` only to override that. The startup repair remains automatic either way.
 
 The service is reachable through Traefik at the `/code/` path and is attached
 to the external Docker network named `proxy`. The Compose file does not publish
@@ -64,6 +68,21 @@ container recreation does not remove them. Change `VSCODE_EXTENSIONS` in
 missing extensions and does not remove existing ones.
 
 ## Operations
+
+The image includes Codex in `/usr/local`, and npm installs global packages for
+the `coder` user under `/home/coder/.local`. To update Codex without sudo, run:
+
+```sh
+npm install -g @openai/codex@latest
+hash -r
+codex --version
+```
+
+Restart Codex to use the new version. User-installed global packages persist in
+`data/home` and take precedence over the versions bundled in the image, including
+after a rebuild. To use a newly pinned `CODEX_CLI_VERSION` from the image instead,
+remove the user-installed Codex with `npm uninstall -g @openai/codex`.
+This npm prefix also applies to other global npm installations by `coder`.
 
 ```sh
 # Follow logs
@@ -113,9 +132,9 @@ claude
 # Codex CLI: Sign in with ChatGPT in the browser
 codex --login
 
-# OpenCode: choose a provider interactively
-opencode
-# then use /connect
+# Pi: start it, then run /login inside Pi to choose a provider
+pi
+# then use /login
 ```
 
 Avoid putting `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or provider keys in
@@ -133,7 +152,7 @@ The image includes a useful general-purpose baseline:
   `uv sync` per project rather than installing application dependencies
   globally.
 - JavaScript: Node.js and npm for the coding-agent CLIs and project tooling.
-- AI agents: Claude Code, Codex CLI, and OpenCode CLI.
+- AI agents: Claude Code, Codex CLI, and Pi coding agent.
 - Editor setup: a default dark theme plus Python/Pylance/Ruff, Prettier,
   ESLint, YAML, and Markdown extensions. Edit `CODE_SERVER_THEME` and
   `VSCODE_EXTENSIONS` in `.env` to customize this baseline.
@@ -146,6 +165,10 @@ inside it controls the host Docker daemon directly (e.g. running
 is powerful, host-level access — anyone who can reach the socket can run
 containers as root on the host — so treat this container's shell with the
 same care as host root access.
+
+`make up` detects `DOCKER_SOCKET_PATH` and `CODE_SERVER_GID` for the current host
+and writes them to `.env`. The steps below explain how those values are derived
+and are only needed to override them.
 
 Unix socket permissions are just a uid/gid match, so `code-server` needs
 to run as whatever uid/gid owns the daemon's socket — no `sudo`,
@@ -188,5 +211,5 @@ workaround (root, sudo, extra groups) can paper over.
 - [Configuration and health-check FAQ](https://github.com/coder/code-server/blob/main/docs/FAQ.md)
 - [Claude Code installation](https://support.claude.com/en/articles/14552382-your-first-day-in-claude-code)
 - [Codex CLI getting started](https://help.openai.com/en/articles/11096431)
-- [OpenCode installation](https://opencode.ai/v2/docs)
+- [Pi coding agent documentation](https://pi.dev)
 - [uv installation](https://docs.astral.sh/uv/getting-started/installation/)
