@@ -15,7 +15,7 @@ fi
 
 # Install missing extensions into the persisted code-server profile. The value
 # is comma-separated so it can be configured in Compose without YAML arrays.
-extensions="${VSCODE_EXTENSIONS:-ms-python.python,ms-python.vscode-pylance,charliermarsh.ruff,esbenp.prettier-vscode,dbaeumer.vscode-eslint,redhat.vscode-yaml,yzhang.markdown-all-in-one}"
+extensions="${VSCODE_EXTENSIONS:-ms-python.python,charliermarsh.ruff,esbenp.prettier-vscode,dbaeumer.vscode-eslint,redhat.vscode-yaml,yzhang.markdown-all-in-one}"
 installed_extensions="$(code-server --list-extensions 2>/dev/null || true)"
 
 printf '%s' "$extensions" | tr ',' '\n' | while IFS= read -r extension; do
